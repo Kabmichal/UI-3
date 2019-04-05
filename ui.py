@@ -145,7 +145,7 @@ def fitness(arrays):
     fitnes = 1
     start_position, map_size = load_map()
     gem = gems()
-    array = move(start_position, arrays, map_size)
+    array = move(start_position, arrays.copy(), map_size)
     for i in gem:
         if i in array:
             fitnes += 1
@@ -160,38 +160,6 @@ def fitness(arrays):
 
     return fitnes
 
-def tournament(old_generation):
-    """
-    vyber najlepsich jedincov pomocou turnaja
-    :param old_generation: vstupna populacia jedincou, ohodnotena fitness funkciou
-    :return: zmutovane pole novych jedincov, ktory vyhrali turnaj
-    """
-    new_generaton = []
-    help_array = []
-    generation_for_mutaion = []
-    pom_array = []
-    counter = 0
-    for i in old_generation:
-        help_array.append(i)
-        if counter % 4 == 0:
-            help_array = sorted(help_array.copy(), key=lambda x: x[0], reverse=True)
-            generation_for_mutaion.append(help_array[0][1])
-            help_array = []
-        counter += 1
-
-    for i in range(generation_for_mutaion.__len__() - 1):
-        for n in range(32):
-            if n % 2 == 0:
-                pom_array.append(generation_for_mutaion[i][n])
-            else:
-                pom_array.append(generation_for_mutaion[i + 1][n])
-        for k in range(32, 48):
-            pom_array.append(generation_for_mutaion[i][k])
-        for l in range(48, 64):
-            pom_array.append(generation_for_mutaion[i][l])
-        new_generaton.append(pom_array)
-        pom_array = []
-    return new_generaton
 
 def generate_position(old_generation, total_sum):
     counter = -1
@@ -211,7 +179,7 @@ def roulete(old_generation, count):
     pom_array = []
     for i in old_generation:
         total_sum += i[0]
-    print("priemerna fitness", total_sum / old_generation.__len__())
+    #print("priemerna fitness", total_sum / old_generation.__len__())
     for i in range(count):
         list_1 = generate_position(old_generation, total_sum)
         list_2 = generate_position(old_generation, total_sum)
@@ -223,6 +191,20 @@ def roulete(old_generation, count):
         pom_array = []
     return new_generation,total_sum
 
+def top_population_first(new_generation, counter):
+    """
+    funkcia vrati to counter jedincov
+    :param new_generation: pole jedincov
+    :param counter: pocet kolko najlepsich jedincov ma byt vybratych
+    :return: top counter jedincov
+    """
+    new_population = []
+    help_array = sorted(new_generation.copy(), key=lambda x: x[0], reverse=True)
+    for i in range(counter):
+        new_population.append(help_array[i].copy())
+   # for i in range(15):
+       # print("Toto su top jedinci ",help_array[i][0])
+    return new_population
 
 def top_population(new_generation, counter):
     """
@@ -234,80 +216,94 @@ def top_population(new_generation, counter):
     new_population = []
     help_array = sorted(new_generation.copy(), key=lambda x: x[0], reverse=True)
     for i in range(counter):
-        new_population.append(help_array[i][1])
+        new_population.append(help_array[i][1].copy())
+       # print("pridavam pole s ohodnotenim",help_array[i][0])
+   # print(new_population)
     return new_population
 
-    """
-    for i in range(0,new_generation.__len__(),3):
-        
-    new_generation=sorted(new_generation,key=lambda x: x[0],reverse=True)
-    print(new_generation)
-    """
-
-
-def fill_with_random(new_generation, rated_generation, number):
+def fill_with_random(new_generation,mutation):
     pom_array = []
     new_population = []
-    if new_generation.__len__() < number:
-        count = number - new_generation.__len__()
-        count //= 2
-        for i in range(count):
-            random_position = random.randint(0, rated_generation.__len__() - 1)
+    for i in new_generation:
+        probability = random.randint(0,100)
+        if probability < mutation:
             random_number = random.randint(0, 256)
             for m in range(64):
-                new_number = rated_generation[random_position][1][m] + random_number
-                if new_number > 255:
-                    new_number %= 256
+                k=random.randint(0,1)
+                if k==0:
+                    new_number = i[m] + random_number
+                    if new_number > 255:
+                        new_number %= 256
+                else:
+                    new_number=i[m]
                 pom_array.append(new_number)
             new_population.append(pom_array)
             pom_array = []
-    return new_population
+        else:
+            new_population.append(i)
+    return new_population,mutation
 
 
-def main_body():
+
+def roulete_test():
     population = 1
     graph_sum = []
     graph_population = []
+    top_members = []
+    mutation = 20
     number = number_of_population()
     input_arrays = first_population(number)
     rated_generation = []
+
     for i in range(number):
         rated_generation.append([fitness(input_arrays[i]), input_arrays[i]])
     sorted_array = sorted(rated_generation.copy(), key=lambda x: x[0], reverse=True)
     best_fitness = sorted_array[0][0]
     gem = gems().__len__()
+
     while best_fitness != gem + 1:
         population += 1
         new_generation = []
-        help_array = top_population(rated_generation, 20)  # funkcia vrati top x jedincov
+        help_array, total_sum = roulete(rated_generation, number-5)
+
         for i in help_array:
             new_generation.append(i)
-        help_array = tournament(rated_generation)
+        help_array,mutation=fill_with_random(new_generation,mutation)
+        new_generation=[]
         for i in help_array:
             new_generation.append(i)
-        help_array,total_sum = roulete(rated_generation, 40)
+        help_array = top_population_first(rated_generation, 5)  # funkcia vrati top x jedincov
+
+        for i in help_array:
+            top_members.append(i.copy())
+        top_members = sorted(top_members, key=lambda x: x[0], reverse=True)
+        help_array = top_population(top_members,5)
+
         for i in help_array:
             new_generation.append(i)
-        help_array = fill_with_random(new_generation, rated_generation, number)
-        for i in help_array:
-            new_generation.append(i)
-        count = new_generation.__len__()
-        for i in range(number - count):
-            new_generation.append(generate())
-        rated_generation = []
+        rated_generation=[]
         for i in range(number):
             rated_generation.append([fitness(new_generation[i]), new_generation[i]])
-        sorted_array = sorted(rated_generation.copy(), key=lambda x: x[0], reverse=True)
-        best_fitness = sorted_array[0][0]
+        rated_generation = sorted(rated_generation, key=lambda x: x[0], reverse=True)
+        best_fitness = rated_generation[0][0]
+
+        print("max fitness ", best_fitness, "priemerna fitness ", total_sum/number, "mutacia ",mutation,"populacia", population)
         if best_fitness == gem + 1:
             break
-        graph_sum.append(total_sum/number)
+        graph_sum.append(total_sum / number)
         graph_population.append(population)
+        if population>2 and mutation < 55:
+            if abs(graph_sum[-2] - graph_sum[-1]) > 0.20 :
+                mutation -= 1
+            else:
+                mutation+=1
+        elif population>2 and mutation == 0:
+            mutation+=1
     print("ciel dosiahnuty na ", population, "tu generaciu")
-    return graph_population,graph_sum
+    return graph_population, graph_sum
 
 def draw_graph():
-    generation,total_sum=main_body()
+    generation,total_sum=roulete_test()
     plt.plot(generation,total_sum)
     plt.show()
 
